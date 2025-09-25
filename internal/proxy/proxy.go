@@ -15,7 +15,7 @@ type Proxy struct {
 func NewProxy(port int) *Proxy {
 	return &Proxy{
 		Port:  port,
-		Cache: cache.NewCache(),
+		Cache: cache.NewCache(128),
 	}
 }
 

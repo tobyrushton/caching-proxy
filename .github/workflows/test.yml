@@ -1,0 +1,23 @@
+name: Test Go Code
+
+on:
+    pull_request:
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+
+        steps:
+        - name: Checkout code
+          uses: actions/checkout@v5
+
+        - name: Set up Go
+          uses: actions/setup-go@v6
+          with:
+            go-version: '1.23'
+
+        - name: Install dependencies
+          run: go mod tidy
+
+        - name: Run tests
+          run: go test ./...
