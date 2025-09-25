@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/alecthomas/kong"
 	"github.com/tobyrushton/caching-proxy/internal/proxy"
 )
@@ -12,9 +15,9 @@ type ProxyCmd struct {
 }
 
 func (p *ProxyCmd) Run() error {
-	proxy := proxy.NewProxy(p.Port)
-	return proxy.Start()
-
+	proxy := proxy.NewProxy(p.Origin)
+	address := fmt.Sprintf(":%d", p.Port)
+	return http.ListenAndServe(address, http.HandlerFunc(proxy.Serve))
 }
 
 var CLI struct {
