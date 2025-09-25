@@ -16,7 +16,7 @@ type CacheTestSuite struct {
 
 func (c *CacheTestSuite) SetupTest() {
 	// Setup code before each test
-	c.cache = cache.NewCache(144 * 3)
+	c.cache = cache.NewCache(40 * 3)
 }
 
 func (c *CacheTestSuite) TestGetNonExistentKey() {
@@ -25,15 +25,27 @@ func (c *CacheTestSuite) TestGetNonExistentKey() {
 }
 
 func (c *CacheTestSuite) TestGetExistingKey() {
-	c.cache.Set("/test", http.Response{StatusCode: 200})
+	c.cache.Set("/test", cache.CacheValue{
+		StatusCode: 200,
+		Header:     http.Header{"Content-Type": []string{"text/plain"}},
+		Body:       []byte(""),
+	})
 	resp, found := c.cache.Get("/test")
 	c.True(found, "Expected key to be found in cache")
 	c.Equal(200, resp.StatusCode, "Expected status code to match")
 }
 
 func (c *CacheTestSuite) TestAddMultipleElements() {
-	c.cache.Set("/first", http.Response{StatusCode: 200})
-	c.cache.Set("/second", http.Response{StatusCode: 201})
+	c.cache.Set("/first", cache.CacheValue{
+		StatusCode: 200,
+		Header:     http.Header{"Content-Type": []string{"text/plain"}},
+		Body:       []byte(""),
+	})
+	c.cache.Set("/second", cache.CacheValue{
+		StatusCode: 201,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       []byte(""),
+	})
 
 	resp1, found1 := c.cache.Get("/first")
 	c.True(found1, "Expected first key to be found in cache")
@@ -46,10 +58,26 @@ func (c *CacheTestSuite) TestAddMultipleElements() {
 
 func (c *CacheTestSuite) TestLRUSizeLimit() {
 	// Each response is assumed to be of size 144 for this test
-	c.cache.Set("/first", http.Response{StatusCode: 200})  // Size 144
-	c.cache.Set("/second", http.Response{StatusCode: 201}) // Size 144
-	c.cache.Set("/third", http.Response{StatusCode: 202})  // Size 144
-	c.cache.Set("/fourth", http.Response{StatusCode: 203}) // Size 144, should evict "/first"
+	c.cache.Set("/first", cache.CacheValue{
+		StatusCode: 200,
+		Header:     http.Header{"Content-Type": []string{"text/plain"}},
+		Body:       []byte(""),
+	}) // Size 40
+	c.cache.Set("/second", cache.CacheValue{
+		StatusCode: 201,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       []byte(""),
+	}) // Size 40
+	c.cache.Set("/third", cache.CacheValue{
+		StatusCode: 202,
+		Header:     http.Header{"Content-Type": []string{"text/html"}},
+		Body:       []byte(""),
+	}) // Size 40
+	c.cache.Set("/fourth", cache.CacheValue{
+		StatusCode: 203,
+		Header:     http.Header{"Content-Type": []string{"application/xml"}},
+		Body:       []byte(""),
+	}) // Size 40, should evict "/first"
 
 	_, found1 := c.cache.Get("/first")
 	c.False(found1, "Expected first key to be evicted from cache")
@@ -68,9 +96,13 @@ func (c *CacheTestSuite) TestLRUSizeLimit() {
 }
 
 func (c *CacheTestSuite) TestLRUSizeLimitWithEmptyCache() {
-	c.cache = cache.NewCache(128)
+	c.cache = cache.NewCache(32)
 
-	c.cache.Set("/first", http.Response{StatusCode: 200}) // Size 144, should not be added
+	c.cache.Set("/first", cache.CacheValue{
+		StatusCode: 200,
+		Header:     http.Header{"Content-Type": []string{"text/plain"}},
+		Body:       []byte(""),
+	}) // Size 40, should not be added
 	_, found := c.cache.Get("/first")
 	c.False(found, "Expected first key to not be added to cache due to size limit")
 }
