@@ -21,30 +21,46 @@ func NewProxy(origin string) *Proxy {
 }
 
 func (p *Proxy) Serve(w http.ResponseWriter, r *http.Request) {
-	res, found := p.checkCache(r.URL.Path)
-	if found {
+	if cachedValue, found := p.checkCache(r.URL.Path); found {
 		w.Header().Add("X-Cache", "HIT")
+		for k, v := range cachedValue.Header {
+			for _, vv := range v {
+				w.Header().Add(k, vv)
+			}
+		}
+		w.WriteHeader(cachedValue.StatusCode)
+		w.Write(cachedValue.Body)
 	} else {
-		resp, err := p.makeRequest(r)
+		res, err := p.makeRequest(r)
 		if err != nil {
 			http.Error(w, "error making request", http.StatusInternalServerError)
 			return
 		}
-		w.Header().Add("X-Cache", "MISS")
-		res = resp
-	}
-
-	for k, v := range res.Header {
-		for _, vv := range v {
-			w.Header().Add(k, vv)
+		for k, v := range res.Header {
+			for _, vv := range v {
+				w.Header().Add(k, vv)
+			}
 		}
+		w.Header().Add("X-Cache", "MISS")
+		w.WriteHeader(res.StatusCode)
+
+		buf, err := io.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			http.Error(w, "error reading response body", http.StatusInternalServerError)
+			return
+		}
+		w.Write(buf)
+
+		p.Cache.Set(r.URL.Path, cache.CacheValue{
+			StatusCode: res.StatusCode,
+			Header:     res.Header.Clone(),
+			Body:       buf,
+		})
 	}
-	w.WriteHeader(res.StatusCode)
-	defer res.Body.Close()
-	io.Copy(w, res.Body)
 }
 
-func (p *Proxy) checkCache(key string) (*http.Response, bool) {
+func (p *Proxy) checkCache(key string) (*cache.CacheValue, bool) {
 	return p.Cache.Get(key)
 }
 
@@ -65,6 +81,5 @@ func (p *Proxy) makeRequest(r *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	p.Cache.Set(r.URL.Path, *res)
 	return res, nil
 }
