@@ -16,7 +16,7 @@ type CacheTestSuite struct {
 
 func (c *CacheTestSuite) SetupTest() {
 	// Setup code before each test
-	c.cache = cache.NewCache()
+	c.cache = cache.NewCache(144 * 3)
 }
 
 func (c *CacheTestSuite) TestGetNonExistentKey() {
@@ -42,6 +42,37 @@ func (c *CacheTestSuite) TestAddMultipleElements() {
 	resp2, found2 := c.cache.Get("/second")
 	c.True(found2, "Expected second key to be found in cache")
 	c.Equal(201, resp2.StatusCode, "Expected status code to match for second key")
+}
+
+func (c *CacheTestSuite) TestLRUSizeLimit() {
+	// Each response is assumed to be of size 144 for this test
+	c.cache.Set("/first", http.Response{StatusCode: 200})  // Size 144
+	c.cache.Set("/second", http.Response{StatusCode: 201}) // Size 144
+	c.cache.Set("/third", http.Response{StatusCode: 202})  // Size 144
+	c.cache.Set("/fourth", http.Response{StatusCode: 203}) // Size 144, should evict "/first"
+
+	_, found1 := c.cache.Get("/first")
+	c.False(found1, "Expected first key to be evicted from cache")
+
+	resp2, found2 := c.cache.Get("/second")
+	c.True(found2, "Expected second key to be found in cache")
+	c.Equal(201, resp2.StatusCode, "Expected status code to match for second key")
+
+	resp3, found3 := c.cache.Get("/third")
+	c.True(found3, "Expected third key to be found in cache")
+	c.Equal(202, resp3.StatusCode, "Expected status code to match for third key")
+
+	resp4, found4 := c.cache.Get("/fourth")
+	c.True(found4, "Expected fourth key to be found in cache")
+	c.Equal(203, resp4.StatusCode, "Expected status code to match for fourth key")
+}
+
+func (c *CacheTestSuite) TestLRUSizeLimitWithEmptyCache() {
+	c.cache = cache.NewCache(128)
+
+	c.cache.Set("/first", http.Response{StatusCode: 200}) // Size 144, should not be added
+	_, found := c.cache.Get("/first")
+	c.False(found, "Expected first key to not be added to cache due to size limit")
 }
 
 func TestCacheTestSuite(t *testing.T) {
