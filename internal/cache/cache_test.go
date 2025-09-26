@@ -3,6 +3,7 @@ package cache_test
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 	"github.com/tobyrushton/caching-proxy/internal/cache"
@@ -16,7 +17,7 @@ type CacheTestSuite struct {
 
 func (c *CacheTestSuite) SetupTest() {
 	// Setup code before each test
-	c.cache = cache.NewCache(40 * 3)
+	c.cache = cache.NewCache(64*3, 360*time.Second)
 }
 
 func (c *CacheTestSuite) TestGetNonExistentKey() {
@@ -96,15 +97,32 @@ func (c *CacheTestSuite) TestLRUSizeLimit() {
 }
 
 func (c *CacheTestSuite) TestLRUSizeLimitWithEmptyCache() {
-	c.cache = cache.NewCache(32)
+	c.cache = cache.NewCache(32, 360*time.Second)
 
 	c.cache.Set("/first", cache.CacheValue{
 		StatusCode: 200,
 		Header:     http.Header{"Content-Type": []string{"text/plain"}},
 		Body:       []byte(""),
-	}) // Size 40, should not be added
+	})
 	_, found := c.cache.Get("/first")
 	c.False(found, "Expected first key to not be added to cache due to size limit")
+}
+
+func (c *CacheTestSuite) TestTTL() {
+	c.cache = cache.NewCache(64*3, 1*time.Second)
+
+	c.cache.Set("/temp", cache.CacheValue{
+		StatusCode: 200,
+		Header:     http.Header{"Content-Type": []string{"text/plain"}},
+		Body:       []byte(""),
+	})
+	time.Sleep(500 * time.Millisecond) // Wait for half the TTL
+	_, found := c.cache.Get("/temp")
+	c.True(found, "Expected temp key to be found in cache before TTL expiry")
+	time.Sleep(1 * time.Second) // Wait for TTL to expire
+
+	_, found = c.cache.Get("/temp")
+	c.False(found, "Expected temp key to be expired from cache")
 }
 
 func TestCacheTestSuite(t *testing.T) {
