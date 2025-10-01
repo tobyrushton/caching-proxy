@@ -14,9 +14,9 @@ type Proxy struct {
 	Cache  *cache.Cache
 }
 
-func NewProxy(origin string) *Proxy {
+func NewProxy(origin string, ttl int64) *Proxy {
 	return &Proxy{
-		Cache:  cache.NewCache(1024, 360*time.Second),
+		Cache:  cache.NewCache(1024, time.Duration(ttl)*time.Second),
 		Origin: origin,
 	}
 }
