@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/tobyrushton/caching-proxy/internal/cache"
 )
@@ -13,9 +14,9 @@ type Proxy struct {
 	Cache  *cache.Cache
 }
 
-func NewProxy(origin string) *Proxy {
+func NewProxy(origin string, ttl int64) *Proxy {
 	return &Proxy{
-		Cache:  cache.NewCache(1024),
+		Cache:  cache.NewCache(1024, time.Duration(ttl)*time.Second),
 		Origin: origin,
 	}
 }

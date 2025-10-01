@@ -3,12 +3,14 @@ package cache
 import (
 	"net/http"
 	"reflect"
+	"time"
 )
 
 type CacheValue struct {
 	StatusCode int
 	Header     http.Header
 	Body       []byte
+	CreatedAt  time.Time
 }
 
 type item struct {
@@ -24,21 +26,27 @@ type Cache struct {
 	items       map[string]*item
 	maxSize     uint64
 	currentSize uint64
+	ttl         time.Duration
 }
 
-func NewCache(maxSize uint64) *Cache {
+func NewCache(maxSize uint64, ttl time.Duration) *Cache {
 	return &Cache{
 		items:       make(map[string]*item),
 		top:         nil,
 		bottom:      nil,
 		maxSize:     maxSize,
 		currentSize: 0,
+		ttl:         ttl,
 	}
 }
 
 func (c *Cache) Get(key string) (*CacheValue, bool) {
 	if item, exists := c.items[key]; exists {
 		c.moveToTop(item)
+		if time.Since(item.value.CreatedAt) > c.ttl {
+			c.Delete(key)
+			return nil, false
+		}
 		return &item.value, true
 	} else {
 		return nil, false
@@ -73,6 +81,7 @@ func (c *Cache) moveToTop(item *item) {
 }
 
 func (c *Cache) Set(key string, value CacheValue) {
+	value.CreatedAt = time.Now()
 	if itm, exists := c.items[key]; exists {
 		sizeDiff := uint64(reflect.TypeOf(value).Size()) - uint64(reflect.TypeOf(itm.value).Size())
 		c.currentSize += sizeDiff

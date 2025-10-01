@@ -22,7 +22,7 @@ func (p *ProxyTestSuite) SetupTest() {
 		w.Write([]byte("Hello, World!"))
 	}))
 
-	p.proxy = proxy.NewProxy(p.testServer.URL)
+	p.proxy = proxy.NewProxy(p.testServer.URL, 360)
 }
 
 func (p *ProxyTestSuite) TestShouldReturnMiss() {

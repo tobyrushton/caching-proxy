@@ -12,13 +12,13 @@ import (
 )
 
 type ProxyCmd struct {
-	Port       int    `help:"Port to run the proxy server on" range:"1..65535"`
-	Origin     string `help:"Origin server URL" type:"url"`
-	ClearCache bool   `help:"Clear the cache of the server" name:"clear-cache"`
+	Port   int    `help:"Port to run the proxy server on" range:"1..65535"`
+	Origin string `help:"Origin server URL" type:"url"`
+	Ttl    int64  `help:"Cache TTL in seconds" default:"360" optional:"" type:"int"`
 }
 
 func (p *ProxyCmd) Run() error {
-	proxy := proxy.NewProxy(p.Origin)
+	proxy := proxy.NewProxy(p.Origin, p.Ttl)
 	address := fmt.Sprintf(":%d", p.Port)
 
 	server := &http.Server{Addr: address, Handler: http.HandlerFunc(proxy.Serve)}
